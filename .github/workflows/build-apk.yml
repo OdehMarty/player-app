@@ -10,7 +10,7 @@ jobs:
       
       - uses: actions/setup-node@v4
         with:
-          node-version: 20      # Changed from 18 to 20
+          node-version: 20
           
       - run: npm install
       - run: npm install -g @capacitor/cli
@@ -25,7 +25,9 @@ jobs:
       - uses: android-actions/setup-android@v3
       
       - name: Setup Android project
-        run: npx cap add android
+        run: |
+          rm -rf android
+          npx cap add android
       
       - name: Add custom plugin
         run: |
