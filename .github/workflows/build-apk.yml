@@ -19,6 +19,19 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+      
+      - name: Create capacitor.config.json
+        run: |
+          cat > capacitor.config.json << 'EOF'
+      {
+        "appId": "com.boxplayer",
+        "appName": "BoxPlayer",
+        "webDir": "dist",
+        "server": {
+          "androidScheme": "https"
+        }
+      }
+      EOF
           
       - run: npx cap init BoxPlayer com.boxplayer --web-dir=dist
       - run: npx cap add android
