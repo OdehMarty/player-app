@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.boxplayer',
+  appId: 'com.boxplayer.app',
   appName: 'BoxPlayer',
   webDir: 'dist',
   server: {

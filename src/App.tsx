@@ -1,33 +1,22 @@
-import { useAllFilesAccess } from './hooks/useAllFilesAccess';
+import { useEffect, useState } from 'react';
+import { ensureManageExternalStoragePermission } from './permissions';
+import './styles.css';
 
-function App() {
-  const { granted, checking, requestAllFilesAccess } = useAllFilesAccess();
+export default function App() {
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    ensureManageExternalStoragePermission().then(setPermissionGranted).catch(() => setPermissionGranted(false));
+  }, []);
 
   return (
-    <main className="app-shell">
-      <section className="hero-card">
-        <p className="eyebrow">Local video library</p>
-        <h1>BoxPlayer</h1>
-        <p className="body-copy">
-          Scan MovieBox downloads, phone videos, and BoxPlayer social downloads from one dark media library.
-        </p>
-
-        <div className="permission-panel">
-          <div>
-            <p className="panel-title">All files access</p>
-            <p className="panel-copy">
-              {checking && 'Checking Android storage access...'}
-              {!checking && granted && 'Storage access is enabled. BoxPlayer can scan local videos.'}
-              {!checking && !granted && 'Enable all files access so BoxPlayer can find downloaded videos.'}
-            </p>
-          </div>
-          <button type="button" onClick={requestAllFilesAccess} disabled={checking || granted}>
-            {granted ? 'Enabled' : 'Open settings'}
-          </button>
-        </div>
-      </section>
+    <main style={{ padding: 20 }}>
+      <h1 style={{ fontSize: 15, fontWeight: 500 }}>BoxPlayer</h1>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+        {permissionGranted === null && 'Checking video storage access...'}
+        {permissionGranted === true && 'Ready to scan MovieBox, social downloads, and phone videos.'}
+        {permissionGranted === false && 'Allow all files access in Android settings to scan local videos.'}
+      </p>
     </main>
   );
 }
-
-export default App;

@@ -1,20 +1,18 @@
 import type { LibraryGroup, ParsedVideo, VideoFile, VideoQuality, VideoSourceTag } from '../types/video';
 
-const QUALITY_PATTERN = /(?:^|_)(360P|480P|720P|1080P|2160P|4K)$/i;
+const QUALITY_PATTERN = /(?:^|_)(360P|480P|720P|1080P|4K)$/i;
 const EPISODE_PATTERN = /(?:^|_)S(\d{1,2})_?E(\d{1,3})(?:_|$)/i;
 const EXTENSION_PATTERN = /\.[^.]+$/;
-const WORD_SEPARATOR_PATTERN = /[_\.]+/g;
-const WHITESPACE_PATTERN = /\s+/g;
 
-const humanizeTitle = (value: string): string =>
-  value.replace(WORD_SEPARATOR_PATTERN, ' ').replace(WHITESPACE_PATTERN, ' ').trim();
+const toTitle = (value: string): string =>
+  value
+    .replace(/[_\.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const normalizeQuality = (quality?: string): VideoQuality => {
   if (!quality) return '';
-
   const normalized = quality.toUpperCase();
-  if (normalized === '2160P') return '4K';
-
   return ['360P', '480P', '720P', '1080P', '4K'].includes(normalized) ? (normalized as VideoQuality) : '';
 };
 
@@ -30,13 +28,14 @@ export const parseVideoFilename = (filename: string, sourceTag: VideoSourceTag =
   const nameWithoutQuality = qualityMatch
     ? nameWithoutExtension.slice(0, qualityMatch.index).replace(/_+$/g, '')
     : nameWithoutExtension;
+
   const episodeMatch = nameWithoutQuality.match(EPISODE_PATTERN);
 
   if (episodeMatch) {
-    const rawTitle = nameWithoutQuality.slice(0, episodeMatch.index).replace(/_+$/g, '');
+    const titlePart = nameWithoutQuality.slice(0, episodeMatch.index).replace(/_+$/g, '');
 
     return {
-      title: humanizeTitle(rawTitle),
+      title: toTitle(titlePart),
       quality,
       season: Number(episodeMatch[1]),
       episode: Number(episodeMatch[2]),
@@ -46,7 +45,7 @@ export const parseVideoFilename = (filename: string, sourceTag: VideoSourceTag =
   }
 
   return {
-    title: humanizeTitle(nameWithoutQuality),
+    title: toTitle(nameWithoutQuality),
     quality,
     isEpisode: false,
     sourceTag,
@@ -62,30 +61,25 @@ export const groupVideosForLibrary = (videos: VideoFile[]): LibraryGroup[] => {
   const groups = new Map<string, LibraryGroup>();
 
   videos.forEach((video) => {
-    const groupId = getLibraryGroupId(video);
-    const existingGroup = groups.get(groupId);
+    const id = getLibraryGroupId(video);
+    const existing = groups.get(id);
 
-    if (existingGroup) {
-      existingGroup.videos.push(video);
+    if (existing) {
+      existing.videos.push(video);
       return;
     }
 
-    groups.set(groupId, {
-      id: groupId,
+    groups.set(id, {
+      id,
       title: video.title,
       sourceTag: video.sourceTag,
-      isSeries: video.isEpisode,
       videos: [video],
+      isSeries: video.isEpisode,
     });
   });
 
   return Array.from(groups.values()).map((group) => ({
     ...group,
-    videos: [...group.videos].sort(
-      (first, second) =>
-        (first.season ?? 0) - (second.season ?? 0) ||
-        (first.episode ?? 0) - (second.episode ?? 0) ||
-        first.title.localeCompare(second.title),
-    ),
+    videos: group.videos.sort((a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0)),
   }));
 };

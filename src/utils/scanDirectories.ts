@@ -1,5 +1,5 @@
 import { Filesystem, type ReaddirResult, type StatResult } from '@capacitor/filesystem';
-import type { ScanDirectory, ScanResult, VideoFile } from '../types/video';
+import type { ScanDirectory, ScanResult, VideoFile, VideoSourceTag } from '../types/video';
 import { groupVideosForLibrary, parseVideoFilename } from './parseVideoFilename';
 
 export const DEFAULT_MOVIEBOX_DOWNLOAD_PATH = '/storage/emulated/0/Android/data/com.community.oneroom/files/Download/d';
@@ -27,17 +27,13 @@ const trimTrailingSlash = (path: string): string => path.replace(/\/+$/g, '');
 const joinPath = (directory: string, child: string): string => `${trimTrailingSlash(directory)}/${child}`;
 
 const isVideoFile = (filename: string): boolean => {
-  const lowerFilename = filename.toLowerCase();
-  return VIDEO_EXTENSIONS.some((extension) => lowerFilename.endsWith(extension));
+  const lower = filename.toLowerCase();
+  return VIDEO_EXTENSIONS.some((extension) => lower.endsWith(extension));
 };
 
-const toFileUri = (absolutePath: string): string => `file://${absolutePath}`;
+const toFileUri = (path: string): string => `file://${path}`;
 
-const isDirectoryEntry = (entry: string | { type?: string }): boolean => typeof entry !== 'string' && entry.type === 'directory';
-
-const getEntryName = (entry: string | { name: string }): string => (typeof entry === 'string' ? entry : entry.name);
-
-const buildScanDirectories = (options: ScanOptions): ScanDirectory[] => {
+const buildDirectories = (options: ScanOptions): ScanDirectory[] => {
   const movieBoxPath = options.movieBoxPath ?? DEFAULT_MOVIEBOX_DOWNLOAD_PATH;
   const boxPlayerDownloadPath = options.boxPlayerDownloadPath ?? DEFAULT_BOXPLAYER_DOWNLOAD_PATH;
   const directories: ScanDirectory[] = [
@@ -46,9 +42,7 @@ const buildScanDirectories = (options: ScanOptions): ScanDirectory[] => {
   ];
 
   if (options.includeGeneralDirectories ?? true) {
-    GENERAL_VIDEO_DIRECTORIES.forEach((path) => {
-      directories.push({ path, sourceTag: 'general', recursive: true });
-    });
+    GENERAL_VIDEO_DIRECTORIES.forEach((path) => directories.push({ path, sourceTag: 'general', recursive: true }));
   }
 
   return directories;
@@ -71,36 +65,35 @@ const scanDirectory = async (
   maxDepth: number,
 ): Promise<VideoFile[]> => {
   const videos: VideoFile[] = [];
-  let directoryResult: ReaddirResult;
 
+  let result: ReaddirResult;
   try {
-    directoryResult = await readDirectory(directory.path);
-  } catch (caughtError) {
-    failedDirectories.push({
-      path: directory.path,
-      reason: caughtError instanceof Error ? caughtError.message : 'Unable to read directory.',
-    });
+    result = await readDirectory(directory.path);
+  } catch (error) {
+    failedDirectories.push({ path: directory.path, reason: error instanceof Error ? error.message : 'Unable to read directory' });
     return videos;
   }
 
   await Promise.all(
-    directoryResult.files.map(async (entry) => {
-      const filename = getEntryName(entry);
+    result.files.map(async (entry: string | { name: string; type?: string }) => {
+      const filename = typeof entry === 'string' ? entry : entry.name;
+      const entryType = typeof entry === 'string' ? undefined : entry.type;
       const absolutePath = joinPath(directory.path, filename);
 
-      if (isDirectoryEntry(entry) && directory.recursive && depth < maxDepth) {
-        const nestedVideos = await scanDirectory({ ...directory, path: absolutePath }, failedDirectories, depth + 1, maxDepth);
-        videos.push(...nestedVideos);
+      if (entryType === 'directory' && directory.recursive && depth < maxDepth) {
+        videos.push(
+          ...(await scanDirectory({ ...directory, path: absolutePath }, failedDirectories, depth + 1, maxDepth)),
+        );
         return;
       }
 
       if (!isVideoFile(filename)) return;
 
       const stat = await statPath(absolutePath);
-      const parsedVideo = parseVideoFilename(filename, directory.sourceTag);
+      const parsed = parseVideoFilename(filename, directory.sourceTag as VideoSourceTag);
 
       videos.push({
-        ...parsedVideo,
+        ...parsed,
         id: `${directory.sourceTag}:${absolutePath}`,
         filename,
         absolutePath,
@@ -116,13 +109,12 @@ const scanDirectory = async (
 };
 
 export const scanVideoDirectories = async (options: ScanOptions = {}): Promise<ScanResult> => {
-  const scannedDirectories = buildScanDirectories(options);
+  const scannedDirectories = buildDirectories(options);
   const failedDirectories: ScanResult['failedDirectories'] = [];
   const maxDepth = options.maxDepth ?? 4;
-  const videosByDirectory = await Promise.all(
-    scannedDirectories.map((directory) => scanDirectory(directory, failedDirectories, 0, maxDepth)),
-  );
-  const videos = videosByDirectory.flat();
+  const videos = (
+    await Promise.all(scannedDirectories.map((directory) => scanDirectory(directory, failedDirectories, 0, maxDepth)))
+  ).flat();
 
   return {
     videos,
