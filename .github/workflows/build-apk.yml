@@ -7,13 +7,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Debug - List files
+        run: |
+          ls -la
+          ls -la src/ || echo "No src folder"
+          cat package.json | head -20
+      
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      
+      - name: Debug - Node version
+        run: node --version
           
       - run: npm install
+      
+      - name: Debug - After npm install
+        run: ls -la node_modules/.bin/ | head -10
+      
       - run: npm install -g @capacitor/cli @capacitor/android
+      
+      - name: Debug - Capacitor version
+        run: npx cap --version
+      
       - run: npm run build
+      
+      - name: Debug - After build
+        run: ls -la dist/ || echo "Build failed - no dist folder"
       
       - uses: actions/setup-java@v4
         with:
@@ -22,26 +42,21 @@ jobs:
       
       - name: Create capacitor.config.json
         run: |
-          cat > capacitor.config.json << 'EOF'
-      {
-        "appId": "com.boxplayer",
-        "appName": "BoxPlayer",
-        "webDir": "dist",
-        "server": {
-          "androidScheme": "https"
-        }
-      }
-      EOF
-          
+          echo '{"appId":"com.boxplayer","appName":"BoxPlayer","webDir":"dist","server":{"androidScheme":"https"}}' > capacitor.config.json
+          cat capacitor.config.json
+      
       - run: npx cap init BoxPlayer com.boxplayer --web-dir=dist
       - run: npx cap add android
       - run: npx cap sync android
+      
+      - name: Debug - Android folder
+        run: ls -la android/ || echo "Android folder missing"
       
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
           
       - uses: actions/upload-artifact@v4
         with:
