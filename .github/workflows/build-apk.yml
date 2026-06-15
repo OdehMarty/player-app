@@ -9,7 +9,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -67,7 +67,7 @@ jobs:
           </html>
           HTML
           
-          # Replace the entire AndroidManifest.xml with correct version (remove package attribute)
+          # Replace AndroidManifest.xml
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -100,7 +100,7 @@ jobs:
           </manifest>
           EOF
           
-          # Fix build.gradle to use Java 17
+          # Fix build.gradle with correct versions
           cat > android/build.gradle << 'EOF'
           buildscript {
               repositories {
@@ -108,7 +108,7 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.0'
+                  classpath 'com.android.tools.build:gradle:8.9.1'
               }
           }
           
@@ -128,20 +128,20 @@ jobs:
           apply plugin: 'com.android.application'
           
           android {
-              compileSdk 34
+              compileSdk 36
               namespace "com.boxplayer"
               
               defaultConfig {
                   applicationId "com.boxplayer"
                   minSdk 23
-                  targetSdk 34
+                  targetSdk 36
                   versionCode 1
                   versionName "1.0"
               }
               
               compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
+                  sourceCompatibility JavaVersion.VERSION_21
+                  targetCompatibility JavaVersion.VERSION_21
               }
           }
           
@@ -149,6 +149,13 @@ jobs:
               implementation fileTree(dir: 'libs', include: ['*.jar'])
               implementation project(':capacitor-android')
           }
+          EOF
+          
+          # Add gradle.properties
+          cat > android/gradle.properties << 'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.suppressUnsupportedCompileSdk=36
           EOF
           
           npx cap sync android
