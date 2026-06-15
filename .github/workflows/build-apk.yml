@@ -5,6 +5,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
       - name: Create fresh Capacitor project
         run: |
           mkdir BoxPlayer
@@ -56,11 +67,10 @@ jobs:
           </html>
           HTML
           
-          # Replace the entire AndroidManifest.xml with correct version
+          # Replace the entire AndroidManifest.xml with correct version (remove package attribute)
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.boxplayer">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
           
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -88,6 +98,57 @@ jobs:
                   </activity>
               </application>
           </manifest>
+          EOF
+          
+          # Fix build.gradle to use Java 17
+          cat > android/build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.0'
+              }
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          
+          cat > android/app/build.gradle << 'EOF'
+          apply plugin: 'com.android.application'
+          
+          android {
+              compileSdk 34
+              namespace "com.boxplayer"
+              
+              defaultConfig {
+                  applicationId "com.boxplayer"
+                  minSdk 23
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          
+          dependencies {
+              implementation fileTree(dir: 'libs', include: ['*.jar'])
+              implementation project(':capacitor-android')
+          }
           EOF
           
           npx cap sync android
