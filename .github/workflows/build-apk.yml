@@ -3,8 +3,6 @@ name: Build Android APK
 on:
   push:
     branches: [ "main", "work" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -23,7 +21,7 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Install Capacitor CLI globally
+      - name: Install Capacitor CLI
         run: npm install -g @capacitor/cli
 
       - name: Build web assets
@@ -35,8 +33,23 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Sync Capacitor Android project
-        run: npm run cap:sync
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Initialize Capacitor Android platform
+        run: |
+          # Remove existing android folder if it exists (but keep custom plugin code)
+          rm -rf android
+          # Add fresh Android platform
+          npx cap add android
+          # Copy custom plugin back
+          mkdir -p android/app/src/main/java/com/boxplayer/plugins/
+          cp -r android-src-plugins/* android/app/src/main/java/com/boxplayer/plugins/ 2>/dev/null || true
+          # Copy custom MainActivity if needed
+          cp android-src-main/MainActivity.java android/app/src/main/java/com/boxplayer/ 2>/dev/null || true
+
+      - name: Sync Capacitor (copy web assets)
+        run: npx cap sync android
 
       - name: Build debug APK
         run: |
