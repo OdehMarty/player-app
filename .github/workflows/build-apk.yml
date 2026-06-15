@@ -5,7 +5,7 @@ on:
     branches: [ "main", "work" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:  # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,12 +19,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install npm dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build web assets (Vite + React)
+      - name: Build web assets
         run: npm run build
 
       - name: Set up Java (JDK 17)
@@ -36,13 +35,13 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
-      - name: Build debug APK with Gradle
+      - name: Build debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: boxplayer-debug-apk
