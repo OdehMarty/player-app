@@ -5,94 +5,71 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Create fresh Capacitor project
+        run: |
+          mkdir BoxPlayer
+          cd BoxPlayer
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init BoxPlayer com.boxplayer --web-dir=www
+          npx cap add android
           
-      - run: npm install -g @capacitor/cli @capacitor/android
-      
-      - name: Remove conflicting config file
-        run: |
-          rm -f capacitor.config.ts
-          rm -f capacitor.config.js
-      
-      - name: Create minimal web app
-        run: |
-          mkdir -p dist
-          cat > dist/index.html << 'EOF'
-      <!DOCTYPE html>
-      <html>
-      <head><title>BoxPlayer</title></head>
-      <body style="background:#111; color:white; font-family:sans-serif; text-align:center; padding:50px;">
-        <h1>📱 BoxPlayer</h1>
-        <p>Video player app is working!</p>
-        <p>Grant storage permissions to see videos.</p>
-      </body>
-      </html>
-      EOF
-      
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      
-      - name: Create capacitor.config.json
-        run: |
-          cat > capacitor.config.json << 'EOF'
-      {
-        "appId": "com.boxplayer",
-        "appName": "BoxPlayer",
-        "webDir": "dist",
-        "server": {
-          "androidScheme": "https"
-        }
-      }
-      EOF
-      
-      - run: npx cap init BoxPlayer com.boxplayer --web-dir=dist
-      - run: npx cap add android
-      - run: npx cap sync android
-      
-      - name: Add permissions to AndroidManifest.xml
-        run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
-      <?xml version="1.0" encoding="utf-8"?>
-      <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.boxplayer">
-      
+          # Create a simple web app
+          mkdir www
+          cat > www/index.html << 'HTML'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>BoxPlayer</title>
+            <style>
+              body {
+                background: #111;
+                color: white;
+                font-family: sans-serif;
+                text-align: center;
+                padding: 50px;
+                margin: 0;
+              }
+              button {
+                background: #1D9E75;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 16px;
+                margin-top: 20px;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>📱 BoxPlayer</h1>
+            <p>Video player is ready!</p>
+            <button onclick="requestPermission()">Grant Storage Permission</button>
+            <script>
+              async function requestPermission() {
+                alert('Please grant storage permission in Android settings');
+              }
+            </script>
+          </body>
+          </html>
+          HTML
+          
+          # Add permissions
+          cat >> android/app/src/main/AndroidManifest.xml << 'PERM'
           <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
           <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
           <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-          <uses-permission android:name="android.permission.INTERNET" />
-      
-          <application
-              android:allowBackup="true"
-              android:label="BoxPlayer"
-              android:theme="@style/AppTheme"
-              android:requestLegacyExternalStorage="true">
-              <activity
-                  android:name=".MainActivity"
-                  android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
-                  android:exported="true"
-                  android:launchMode="singleTask">
-                  <intent-filter>
-                      <action android:name="android.intent.action.MAIN" />
-                      <category android:name="android.intent.category.LAUNCHER" />
-                  </intent-filter>
-              </activity>
-          </application>
-      </manifest>
-      EOF
-      
-      - name: Build APK
-        run: |
+          PERM
+          
+          npx cap sync android
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
           
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: BoxPlayer
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: BoxPlayer/android/app/build/outputs/apk/debug/app-debug.apk
