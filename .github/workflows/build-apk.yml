@@ -27,28 +27,16 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: Set up Java (JDK 17)
+      - name: Set up Java (JDK 21)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Initialize Capacitor Android platform
-        run: |
-          # Remove existing android folder if it exists (but keep custom plugin code)
-          rm -rf android
-          # Add fresh Android platform
-          npx cap add android
-          # Copy custom plugin back
-          mkdir -p android/app/src/main/java/com/boxplayer/plugins/
-          cp -r android-src-plugins/* android/app/src/main/java/com/boxplayer/plugins/ 2>/dev/null || true
-          # Copy custom MainActivity if needed
-          cp android-src-main/MainActivity.java android/app/src/main/java/com/boxplayer/ 2>/dev/null || true
-
-      - name: Sync Capacitor (copy web assets)
+      - name: Sync Capacitor Android project
         run: npx cap sync android
 
       - name: Build debug APK
