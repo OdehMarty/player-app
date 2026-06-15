@@ -12,7 +12,7 @@ jobs:
         with:
           node-version: 18
           
-      - run: npm installgk
+      - run: npm install
       - run: npm install -g @capacitor/cli
       
       # Skip TypeScript checking, just build with Vite
