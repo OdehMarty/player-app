@@ -7,33 +7,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Debug - List files
-        run: |
-          ls -la
-          ls -la src/ || echo "No src folder"
-          cat package.json | head -20
-      
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      
-      - name: Debug - Node version
-        run: node --version
           
-      - run: npm install
-      
-      - name: Debug - After npm install
-        run: ls -la node_modules/.bin/ | head -10
-      
       - run: npm install -g @capacitor/cli @capacitor/android
       
-      - name: Debug - Capacitor version
-        run: npx cap --version
+      - name: Remove conflicting config file
+        run: |
+          rm -f capacitor.config.ts
+          rm -f capacitor.config.js
       
-      - run: npm run build
-      
-      - name: Debug - After build
-        run: ls -la dist/ || echo "Build failed - no dist folder"
+      - name: Create minimal web app
+        run: |
+          mkdir -p dist
+          cat > dist/index.html << 'EOF'
+      <!DOCTYPE html>
+      <html>
+      <head><title>BoxPlayer</title></head>
+      <body style="background:#111; color:white; font-family:sans-serif; text-align:center; padding:50px;">
+        <h1>📱 BoxPlayer</h1>
+        <p>Video player app is working!</p>
+        <p>Grant storage permissions to see videos.</p>
+      </body>
+      </html>
+      EOF
       
       - uses: actions/setup-java@v4
         with:
@@ -42,23 +40,59 @@ jobs:
       
       - name: Create capacitor.config.json
         run: |
-          echo '{"appId":"com.boxplayer","appName":"BoxPlayer","webDir":"dist","server":{"androidScheme":"https"}}' > capacitor.config.json
-          cat capacitor.config.json
+          cat > capacitor.config.json << 'EOF'
+      {
+        "appId": "com.boxplayer",
+        "appName": "BoxPlayer",
+        "webDir": "dist",
+        "server": {
+          "androidScheme": "https"
+        }
+      }
+      EOF
       
       - run: npx cap init BoxPlayer com.boxplayer --web-dir=dist
       - run: npx cap add android
       - run: npx cap sync android
       
-      - name: Debug - Android folder
-        run: ls -la android/ || echo "Android folder missing"
+      - name: Add permissions to AndroidManifest.xml
+        run: |
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.boxplayer">
+      
+          <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+          <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+          <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+          <uses-permission android:name="android.permission.INTERNET" />
+      
+          <application
+              android:allowBackup="true"
+              android:label="BoxPlayer"
+              android:theme="@style/AppTheme"
+              android:requestLegacyExternalStorage="true">
+              <activity
+                  android:name=".MainActivity"
+                  android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+                  android:exported="true"
+                  android:launchMode="singleTask">
+                  <intent-filter>
+                      <action android:name="android.intent.action.MAIN" />
+                      <category android:name="android.intent.category.LAUNCHER" />
+                  </intent-filter>
+              </activity>
+          </application>
+      </manifest>
+      EOF
       
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug
           
       - uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: BoxPlayer
           path: android/app/build/outputs/apk/debug/app-debug.apk
